@@ -3,7 +3,6 @@ package shuffle
 import (
 	"bytes"
 	"context"
-	"strconv"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/hex"
@@ -15,11 +14,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 
 	//"strconv"
 	//"encoding/binary"
-	"math/rand"
 	"math"
+	"math/rand"
 	"sort"
 	"strings"
 	"time"
@@ -78,11 +78,11 @@ func GetESIndexPrefix(index string) string {
 }
 
 // Dumps data from cache to DB for every 5 action (old was 25)
-//var dumpInterval = 0x19
-//var dumpInterval = 0x1
+// var dumpInterval = 0x19
+// var dumpInterval = 0x1
 var dumpInterval = 0x5
 
-// 1. Check list if there is a record for yesterday 
+// 1. Check list if there is a record for yesterday
 // 2. If there isn't, set it and clear out the daily records
 // Also: can we dump a list of apps that run? Maybe a list of them?
 func handleDailyCacheUpdate(executionInfo *ExecutionInfo) *ExecutionInfo {
@@ -91,7 +91,7 @@ func handleDailyCacheUpdate(executionInfo *ExecutionInfo) *ExecutionInfo {
 
 	for _, day := range executionInfo.DailyStatistics {
 
-		// Check if the day.Date is the same as yesterday and return if it is 
+		// Check if the day.Date is the same as yesterday and return if it is
 		if day.Date.Format("2006-12-02") == timeYesterdayFormatted {
 			//log.Printf("[DEBUG] Daily stats already updated for %s. Data: %#v", day.Date, day)
 			return executionInfo
@@ -101,19 +101,19 @@ func handleDailyCacheUpdate(executionInfo *ExecutionInfo) *ExecutionInfo {
 	log.Printf("[DEBUG] Daily stats not updated for %s in org %s. Only have %d stats so far", timeYesterday, executionInfo.OrgId, len(executionInfo.DailyStatistics))
 	// If we get here, we need to update the daily stats
 	newDay := DailyStatistics{
-		Date: timeYesterday,
-		AppExecutions             :  executionInfo.DailyAppExecutions,
-		AppExecutionsFailed       :  executionInfo.DailyAppExecutionsFailed,
-		SubflowExecutions         :  executionInfo.DailySubflowExecutions,
-		WorkflowExecutions        :  executionInfo.DailyWorkflowExecutions,
-		WorkflowExecutionsFinished:  executionInfo.DailyWorkflowExecutionsFinished,
-		WorkflowExecutionsFailed  : executionInfo.DailyWorkflowExecutionsFailed, 
-		OrgSyncActions            : executionInfo.DailyOrgSyncActions, 
-		CloudExecutions           : executionInfo.DailyCloudExecutions,
-		OnpremExecutions          : executionInfo.DailyOnpremExecutions,
-		AIUsage              : executionInfo.DailyAIUsage,
+		Date:                       timeYesterday,
+		AppExecutions:              executionInfo.DailyAppExecutions,
+		AppExecutionsFailed:        executionInfo.DailyAppExecutionsFailed,
+		SubflowExecutions:          executionInfo.DailySubflowExecutions,
+		WorkflowExecutions:         executionInfo.DailyWorkflowExecutions,
+		WorkflowExecutionsFinished: executionInfo.DailyWorkflowExecutionsFinished,
+		WorkflowExecutionsFailed:   executionInfo.DailyWorkflowExecutionsFailed,
+		OrgSyncActions:             executionInfo.DailyOrgSyncActions,
+		CloudExecutions:            executionInfo.DailyCloudExecutions,
+		OnpremExecutions:           executionInfo.DailyOnpremExecutions,
+		AIUsage:                    executionInfo.DailyAIUsage,
 
-		ApiUsage : executionInfo.DailyApiUsage,
+		ApiUsage: executionInfo.DailyApiUsage,
 	}
 
 	executionInfo.DailyStatistics = append(executionInfo.DailyStatistics, newDay)
@@ -156,7 +156,7 @@ func handleDailyCacheUpdate(executionInfo *ExecutionInfo) *ExecutionInfo {
 	return executionInfo
 }
 
-func HandleIncrement(dataType string, orgStatistics *ExecutionInfo) *ExecutionInfo { 
+func HandleIncrement(dataType string, orgStatistics *ExecutionInfo) *ExecutionInfo {
 	if dataType == "workflow_executions" {
 		orgStatistics.TotalWorkflowExecutions += int64(dumpInterval)
 		orgStatistics.MonthlyWorkflowExecutions += int64(dumpInterval)
@@ -235,9 +235,8 @@ func HandleIncrement(dataType string, orgStatistics *ExecutionInfo) *ExecutionIn
 func SetOrgStatistics(ctx context.Context, stats ExecutionInfo, id string) error {
 	nameKey := "org_statistics"
 
-	// dedup based on date 
+	// dedup based on date
 	allDates := []string{}
-
 
 	newDaily := []DailyStatistics{}
 	for _, stat := range stats.OnpremStats {
@@ -249,7 +248,7 @@ func SetOrgStatistics(ctx context.Context, stats ExecutionInfo, id string) error
 	}
 
 	if len(newDaily) < len(stats.OnpremStats) {
-		log.Printf("\n\n[INFO] Deduped %d stats for org %s\n\n", len(stats.OnpremStats) - len(newDaily), id)
+		log.Printf("\n\n[INFO] Deduped %d stats for org %s\n\n", len(stats.OnpremStats)-len(newDaily), id)
 	}
 
 	stats.OnpremStats = newDaily
@@ -264,7 +263,7 @@ func SetOrgStatistics(ctx context.Context, stats ExecutionInfo, id string) error
 		err := indexEs(ctx, nameKey, id, data)
 		if err != nil {
 			log.Printf("[ERROR] Failed indexing in set stats: %s", err)
-			return err 
+			return err
 		}
 	} else {
 		key := datastore.NameKey(nameKey, id, nil)
@@ -298,13 +297,13 @@ func IncrementCacheDump(ctx context.Context, orgId, dataType string) {
 	orgStatistics := &ExecutionInfo{}
 
 	if project.DbType == "opensearch" {
-		// Get it from opensearch (may be prone to more issues at scale (thousands/second) due to no transactional locking) 
+		// Get it from opensearch (may be prone to more issues at scale (thousands/second) due to no transactional locking)
 
 		id := strings.ToLower(orgId)
 		res, err := project.Es.Get(strings.ToLower(GetESIndexPrefix(nameKey)), id)
 		if err != nil {
 			log.Printf("[WARNING] Error in org STATS get: %s", err)
-			return 
+			return
 		}
 
 		defer res.Body.Close()
@@ -331,7 +330,7 @@ func IncrementCacheDump(ctx context.Context, orgId, dataType string) {
 				}
 			}
 
-			return 
+			return
 		}
 
 		orgStatsWrapper := &ExecutionInfoWrapper{}
@@ -351,7 +350,7 @@ func IncrementCacheDump(ctx context.Context, orgId, dataType string) {
 			orgStatistics.OrgId = orgId
 		}
 
-		orgStatistics = HandleIncrement(dataType, orgStatistics) 
+		orgStatistics = HandleIncrement(dataType, orgStatistics)
 		orgStatistics = handleDailyCacheUpdate(orgStatistics)
 
 		//log.Printf("\n\nDaily stats: %d\n\n", len(orgStatistics.DailyStatistics))
@@ -397,8 +396,7 @@ func IncrementCacheDump(ctx context.Context, orgId, dataType string) {
 			orgStatistics.OrgId = orgId
 		}
 
-
-		orgStatistics = HandleIncrement(dataType, orgStatistics) 
+		orgStatistics = HandleIncrement(dataType, orgStatistics)
 		orgStatistics = handleDailyCacheUpdate(orgStatistics)
 
 		if _, err := tx.Put(key, orgStatistics); err != nil {
@@ -418,7 +416,7 @@ func IncrementCacheDump(ctx context.Context, orgId, dataType string) {
 		data, err := json.Marshal(orgStatistics)
 		if err != nil {
 			log.Printf("[WARNING] Failed marshalling in set org stats: %s", err)
-			return 
+			return
 		}
 
 		err = SetCache(ctx, cacheKey, data, 30)
@@ -530,7 +528,7 @@ func IncrementCache(ctx context.Context, orgId, dataType string) {
 					foundItem += 1
 				}
 			}
- 
+
 			if foundItem >= int(dbDumpInterval) {
 				// Memcache dump first to keep the counter going for other executions
 				go SetCache(ctx, key, []byte("0"), 86400)
@@ -882,7 +880,6 @@ func SetWorkflowExecution(ctx context.Context, workflowExecution WorkflowExecuti
 		return errors.New("ExecutionId can't be empty.")
 	}
 
-
 	if len(workflowExecution.WorkflowId) == 0 {
 		log.Printf("[WARNING] Workflowexecution workflowId can't be empty.")
 		workflowExecution.WorkflowId = workflowExecution.Workflow.ID
@@ -973,7 +970,7 @@ func SetWorkflowExecution(ctx context.Context, workflowExecution WorkflowExecuti
 	} else {
 		workflowExecution, _ := compressExecution(ctx, workflowExecution, "db-connector save")
 
-		// Print 1 out of X times as a debug mode 
+		// Print 1 out of X times as a debug mode
 		if rand.Intn(20) == 1 {
 			log.Printf("[INFO][%s] Saving execution with status %s and %d/%d results (not including subflows) - 2", workflowExecution.ExecutionId, workflowExecution.Status, len(workflowExecution.Results), len(workflowExecution.Workflow.Actions))
 		}
@@ -1267,7 +1264,6 @@ func Fixexecution(ctx context.Context, workflowExecution WorkflowExecution) Work
 	for actionIndex, action := range workflowExecution.Workflow.Actions {
 		found := false
 		result := ActionResult{}
-
 
 		workflowExecution.Workflow.Actions[actionIndex].LargeImage = ""
 		workflowExecution.Workflow.Actions[actionIndex].SmallImage = ""
@@ -2289,7 +2285,7 @@ func GetOrgStatistics(ctx context.Context, orgId string) (*ExecutionInfo, error)
 	if project.DbType == "opensearch" {
 		res, err := project.Es.Get(strings.ToLower(GetESIndexPrefix(nameKey)), orgId)
 		if err != nil {
-		 log.Printf("[WARNING] Error for %s: %s", cacheKey, err)
+			log.Printf("[WARNING] Error for %s: %s", cacheKey, err)
 			return stats, err
 		}
 
@@ -3480,7 +3476,7 @@ func GetOpenApiDatastore(ctx context.Context, id string) (ParsedOpenApi, error) 
 			log.Printf("Some API issue: %s", err)
 
 			if strings.Contains(fmt.Sprintf("%s", err), "cannot load field") {
-				return *api, nil 
+				return *api, nil
 			}
 
 			//project.BucketName := project.BucketName
@@ -4012,7 +4008,6 @@ func SetUser(ctx context.Context, user *User, updateOrg bool) error {
 		}
 	}
 
-
 	return nil
 }
 
@@ -4404,7 +4399,7 @@ func GetPrioritizedApps(ctx context.Context, user User) ([]WorkflowApp, error) {
 				for paramIndex, param := range action.Parameters {
 					if param.Name == "body" {
 						allApps[appIndex].Actions[actionIndex].Parameters[paramIndex].Required = true
-						
+
 					}
 				}
 			}
@@ -4825,7 +4820,6 @@ func GetPrioritizedApps(ctx context.Context, user User) ([]WorkflowApp, error) {
 		}
 	}
 
-
 	return allApps, nil
 }
 
@@ -4836,7 +4830,6 @@ func fixAppAppend(allApps []WorkflowApp, innerApp WorkflowApp) ([]WorkflowApp, W
 
 	for appIndex, loopedApp := range allApps {
 		// Check if shuffle subflow and skip
-
 
 		if strings.ToLower(loopedApp.Name) == "shuffle tools" {
 			//log.Printf("%s vs %s - %s vs %s", loopedApp.Name, innerApp.Name, loopedApp.AppVersion, innerApp.AppVersion)
@@ -5432,12 +5425,11 @@ func GetPlatformHealth(ctx context.Context, beforeTimestamp int, afterTimestamp 
 	} else {
 		q := datastore.NewQuery(nameKey)
 
-
 		if beforeTimestamp != 0 {
 			// Modify the query to filter for "before" timestamp.
 			q = q.Filter("Updated >", beforeTimestamp)
 		}
-	
+
 		if afterTimestamp != 0 {
 			// Modify the query to filter for "after" timestamp.
 			q = q.Filter("Updated <", afterTimestamp)
@@ -5449,7 +5441,6 @@ func GetPlatformHealth(ctx context.Context, beforeTimestamp int, afterTimestamp 
 		}
 
 		q = q.Order("-Updated")
-	
 
 		_, err := project.Dbclient.GetAll(ctx, q, &health)
 		if err != nil {
@@ -5458,7 +5449,7 @@ func GetPlatformHealth(ctx context.Context, beforeTimestamp int, afterTimestamp 
 		}
 	}
 
-	return health, nil		
+	return health, nil
 }
 
 func SetPlatformHealth(ctx context.Context, health HealthCheckDB) error {
@@ -5857,14 +5848,12 @@ func ListWorkflowRevisions(ctx context.Context, originalId string) ([]Workflow, 
 		handled = append(handled, string(workflow.Edited))
 		filtered = append(filtered, workflow)
 	}
-		
-
 
 	// Set cache
 	if project.CacheDb {
 		cacheData, err := json.Marshal(workflows)
 		if err != nil {
-			return workflows, nil 
+			return workflows, nil
 		}
 
 		err = SetCache(ctx, cacheKey, cacheData, 60)
@@ -5872,7 +5861,6 @@ func ListWorkflowRevisions(ctx context.Context, originalId string) ([]Workflow, 
 			log.Printf("[ERROR] Failed setting cache for workflow revisions: %s (not critical)", err)
 		}
 	}
-
 
 	return workflows, nil
 }
@@ -5929,7 +5917,7 @@ func SetWorkflowRevision(ctx context.Context, workflow Workflow) error {
 		if err != nil {
 			log.Printf("[WARNING] Failed setting cache for set workflow revision '%s': %s", cacheKey, err)
 		}
-	
+
 		DeleteCache(ctx, fmt.Sprintf("%s_%s", nameKey, workflow.ID))
 	}
 
@@ -5937,17 +5925,17 @@ func SetWorkflowRevision(ctx context.Context, workflow Workflow) error {
 }
 
 func fixPosition(position float64) float64 {
-		intValue := int(math.Round(position)) // Convert the float to the nearest integer
-	
-		difference := position - float64(intValue)
-		difference = math.Abs(difference)
-	
-		if difference == 0 {
-			//log.Printf("[DEBUG] Position fixed from %s to %s", position, position + 0.001)
-			return position + 0.001
-		}
+	intValue := int(math.Round(position)) // Convert the float to the nearest integer
 
-		return position
+	difference := position - float64(intValue)
+	difference = math.Abs(difference)
+
+	if difference == 0 {
+		//log.Printf("[DEBUG] Position fixed from %s to %s", position, position + 0.001)
+		return position + 0.001
+	}
+
+	return position
 }
 
 func SetWorkflow(ctx context.Context, workflow Workflow, id string, optionalEditedSecondsOffset ...int) error {
@@ -6004,7 +5992,7 @@ func SetWorkflow(ctx context.Context, workflow Workflow, id string, optionalEdit
 			log.Printf("[WARNING] Failed setting cache for getworkflow '%s': %s", cacheKey, err)
 		}
 
-		// Find the key for "workflows_<workflow.org_id>" and update the cache for this one. If it doesn't exist, add it 
+		// Find the key for "workflows_<workflow.org_id>" and update the cache for this one. If it doesn't exist, add it
 
 		// Get the cache for the workflows
 		cacheKey = fmt.Sprintf("%s_workflows", workflow.OrgId)
@@ -7037,7 +7025,7 @@ func GetAllFiles(ctx context.Context, orgId, namespace string) ([]File, error) {
 			return files, err
 		}
 
-		wrapped := FileSearchWrapper{}
+		wrapped := FileSearchWrapper{} 
 		err = json.Unmarshal(respBody, &wrapped)
 		if err != nil {
 			return files, err
@@ -7577,7 +7565,7 @@ func GetUnfinishedExecutions(ctx context.Context, workflowId string) ([]Workflow
 			newexec, err := GetWorkflowExecution(ctx, execution.ExecutionId)
 			if err == nil {
 				// Set the execution as well in the database
-				if newexec.Status != execution.Status { 
+				if newexec.Status != execution.Status {
 					go SetWorkflowExecution(ctx, *newexec, true)
 				}
 
@@ -7596,7 +7584,6 @@ func GetAllWorkflowExecutionsV2(ctx context.Context, workflowId string, amount i
 	var executions []WorkflowExecution
 	var err error
 	totalMaxSize := 11184810
-
 
 	cursor := ""
 	if project.DbType == "opensearch" {
@@ -7815,7 +7802,7 @@ func GetAllWorkflowExecutionsV2(ctx context.Context, workflowId string, amount i
 			newexec, err := GetWorkflowExecution(ctx, execution.ExecutionId)
 			if err == nil {
 				// Set the execution as well in the database
-				if newexec.Status != execution.Status { 
+				if newexec.Status != execution.Status {
 					go SetWorkflowExecution(ctx, *newexec, true)
 				}
 
@@ -7824,7 +7811,7 @@ func GetAllWorkflowExecutionsV2(ctx context.Context, workflowId string, amount i
 		} else {
 			// Delete cache to clear up memory
 			if project.Environment != "cloud" && execution.Status == "ABORTED" || execution.Status == "FAILURE" || execution.Status == "FINISHED" {
-				// Delete cache for it 
+				// Delete cache for it
 				RunCacheCleanup(ctx, execution)
 			}
 		}
@@ -7886,19 +7873,19 @@ func GetAllWorkflowExecutionsV2(ctx context.Context, workflowId string, amount i
 	}
 
 	/*
-	if project.CacheDb {
-		data, err := json.Marshal(executions)
-		if err != nil {
-			log.Printf("[WARNING] Failed marshalling update execution cache: %s", err)
-			return executions, cursor, nil
-		}
+		if project.CacheDb {
+			data, err := json.Marshal(executions)
+			if err != nil {
+				log.Printf("[WARNING] Failed marshalling update execution cache: %s", err)
+				return executions, cursor, nil
+			}
 
-		err = SetCache(ctx, cacheKey, data, 10)
-		if err != nil {
-			log.Printf("[WARNING] Failed setting cache executions (%s): %s", workflowId, err)
-			return executions, cursor, nil
+			err = SetCache(ctx, cacheKey, data, 10)
+			if err != nil {
+				log.Printf("[WARNING] Failed setting cache executions (%s): %s", workflowId, err)
+				return executions, cursor, nil
+			}
 		}
-	}
 	*/
 
 	return executions, cursor, nil
@@ -8716,6 +8703,7 @@ func GetCacheKey(ctx context.Context, id string) (*CacheKeyData, error) {
 }
 
 var retryCount int
+
 func RunInit(dbclient datastore.Client, storageClient storage.Client, gceProject, environment string, cacheDb bool, dbType string) (ShuffleStorage, error) {
 	if dbType == "elasticsearch" {
 		dbType = "opensearch"
@@ -8767,11 +8755,11 @@ func RunInit(dbclient datastore.Client, storageClient storage.Client, gceProject
 
 					os.Setenv("SHUFFLE_OPENSEARCH_URL", esUrl)
 
-					log.Printf("[ERROR] Automatically skipping SSL verification for Opensearch connection and swapping http/https.") 
+					log.Printf("[ERROR] Automatically skipping SSL verification for Opensearch connection and swapping http/https.")
 					os.Setenv("SHUFFLE_OPENSEARCH_SKIPSSL_VERIFY", "true")
 
 					retryCount += 1
-					return RunInit(dbclient, storageClient, gceProject, environment, cacheDb, dbType) 
+					return RunInit(dbclient, storageClient, gceProject, environment, cacheDb, dbType)
 				}
 			}
 
@@ -9684,7 +9672,6 @@ func RunCacheCleanup(ctx context.Context, workflowExecution WorkflowExecution) {
 		DeleteCache(ctx, cacheId)
 	}
 
-	
 	DeleteCache(ctx, fmt.Sprintf("workflowexecution_%s", workflowExecution.ExecutionId))
 
 	// This caused problems somehow
@@ -9708,7 +9695,7 @@ func ValidateFinished(ctx context.Context, extra int, workflowExecution Workflow
 				log.Printf("[WARNING][%s] Waiting for action %s to finish", workflowExecution.ExecutionId, result.Action.ID)
 				return false
 			}
-		
+
 			if result.Status == "SUCCESS" {
 				validResults += 1
 			}
@@ -9721,7 +9708,6 @@ func ValidateFinished(ctx context.Context, extra int, workflowExecution Workflow
 				subflows += 1
 			}
 		}
-
 
 		// Check if status is already set first from cache
 		newexec, err := GetWorkflowExecution(ctx, workflowExecution.ExecutionId)
@@ -10008,4 +9994,234 @@ func GetDatastore() *datastore.Client {
 
 func GetStorage() *storage.Client {
 	return &project.StorageClient
+}
+
+// a function to save a form to the database
+// the form should contain a name, id, form_data and webhook_id
+func SetForm(ctx context.Context, form FormStructure, id string) error {
+	nameKey := "form"
+
+	// New struct, to not add body, author etc
+	formData, err := json.Marshal(form)
+	if err != nil {
+		log.Printf("[WARNING] Failed marshalling in setapp: %s", err)
+		return nil
+	}
+
+	formId := strings.ToLower(id)
+
+	// debug
+	log.Printf("[DEBUG] Form data: %s", formData)
+
+	if project.DbType == "opensearch" {
+		err := indexEs(ctx, nameKey, id, formData)
+		if err != nil {
+			return err
+		}
+	} else {
+		key := datastore.NameKey(nameKey, id, nil)
+		if _, err := project.Dbclient.Put(ctx, key, &form); err != nil {
+			log.Printf("[ERROR] Failed adding form with ID %s: %s", id, err)
+			return err
+		}
+	}
+
+	if project.CacheDb {
+
+		cacheKey := fmt.Sprintf("%s_%s", nameKey, formId)
+		err = SetCache(ctx, cacheKey, formData, 30)
+		if err != nil {
+			log.Printf("[WARNING] Failed setting cache for form key '%s': %s", cacheKey, err)
+		}
+	}
+
+	return nil
+}
+
+// a function to get the form details from the database
+// given a form id
+func GetForm(ctx context.Context, formId string) (*FormStructure, error) {
+	nameKey := "form"
+	formId = strings.ToLower(formId)
+	cacheKey := fmt.Sprintf("%s_%s", nameKey, formId)
+
+	form := &FormStructure{}
+	if project.CacheDb {
+		cache, err := GetCache(ctx, cacheKey)
+		if err == nil {
+			cacheData := []byte(cache.([]uint8))
+			//log.Printf("CACHEDATA: %s", cacheData)
+			err = json.Unmarshal(cacheData, &form)
+			if err == nil && len(form.Id) > 0 {
+				return form, nil
+			} else {
+				return form, errors.New(fmt.Sprintf("Bad cache for %s", formId))
+			}
+		} else {
+			//log.Printf("[DEBUG] Failed getting cache for hook: %s", err)
+		}
+	}
+
+	var err error
+	if project.DbType == "opensearch" {
+		res, err := project.Es.Get(strings.ToLower(GetESIndexPrefix(nameKey)), formId)
+		if err != nil {
+			log.Printf("[WARNING] Error in form get: %s", err)
+			return &FormStructure{}, err
+		}
+
+		defer res.Body.Close()
+		if res.StatusCode == 404 {
+			return &FormStructure{}, errors.New(fmt.Sprintf("Form %s not found", formId))
+		}
+		respBody, bodyErr := ioutil.ReadAll(res.Body)
+		if err != nil || bodyErr != nil || res.StatusCode >= 300 {
+			log.Printf("[WARNING] Failed getting form body: %s. Resp: %d. Body err: %s", err, res.StatusCode, bodyErr)
+			return &FormStructure{}, err
+		}
+
+		wrapped := FormStructureWrapper{}
+		err = json.Unmarshal(respBody, &form)
+		if err != nil {
+			log.Printf("[ERROR] Failed unmarshalling form body: %s", err)
+			return &FormStructure{}, err
+		}
+
+		form = &wrapped.Source
+	} else {
+		key := datastore.NameKey(nameKey, formId, nil)
+		if err := project.Dbclient.Get(ctx, key, &form); err != nil {
+			log.Printf("[ERROR] Failed getting form body: %s", err)
+			return &FormStructure{}, err
+		}
+	}
+
+	if project.CacheDb {
+		hookData, err := json.Marshal(form)
+		if err != nil {
+			log.Printf("[WARNING] Failed marshalling in getform: %s", err)
+			return form, err
+		}
+
+		err = SetCache(ctx, cacheKey, hookData, 30)
+		if err != nil {
+			log.Printf("[WARNING] Failed setting cache for getform '%s': %s", cacheKey, err)
+		}
+	}
+
+	return form, err
+}
+
+func GetForms(ctx context.Context) ([]FormStructure, error) {
+	nameKey := "form"
+	var forms []FormStructure
+
+	if project.DbType == "opensearch" {
+		var buf bytes.Buffer
+
+		// Or search?
+		// query := map[string]interface{}{
+		// 	"size": 1000,
+		// 	"query": map[string]interface{}{
+		// 		"bool": map[string]interface{}{
+		// 			"must": []map[string]interface{}{
+		// 				map[string]interface{}{
+		// 					"match": map[string]interface{}{
+		// 						"md5_sum": md5,
+		// 					},
+		// 				},
+		// 				map[string]interface{}{
+		// 					"match": map[string]interface{}{
+		// 						"org_id": orgId,
+		// 					},
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// }
+		query := map[string]interface{}{
+			"from": 0,
+			"size": 1000,
+			"query": map[string]interface{}{
+				"match_all": map[string]interface{}{},
+			},
+		}
+
+		if err := json.NewEncoder(&buf).Encode(query); err != nil {
+			log.Printf("[WARNING] Error encoding find user query: %s", err)
+			return forms, nil
+		}
+
+		// Get it from opensearch (may be prone to more issues at scale (thousands/second) due to no transactional locking)
+		res, err := project.Es.Search(
+			project.Es.Search.WithContext(ctx),
+			project.Es.Search.WithIndex(strings.ToLower(GetESIndexPrefix(nameKey))),
+			project.Es.Search.WithBody(&buf),
+			project.Es.Search.WithTrackTotalHits(true),
+		)
+		if err != nil {
+			log.Printf("[WARNING] Error in form get: %s", err)
+			return forms, err
+		}
+
+		defer res.Body.Close()
+		if res.StatusCode == 404 {
+			return forms, nil
+		}
+
+		if res.IsError() {
+			var e map[string]interface{}
+			if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
+				log.Printf("[WARNING] Error parsing the response body: %s", err)
+				return forms, err
+			} else {
+				// Print the response status and error information.
+				log.Printf("[%s] %s: %s",
+					res.Status(),
+					e["error"].(map[string]interface{})["type"],
+					e["error"].(map[string]interface{})["reason"],
+				)
+			}
+		}
+
+		if res.StatusCode != 200 && res.StatusCode != 201 {
+			return forms, errors.New(fmt.Sprintf("Bad statuscode: %d", res.StatusCode))
+		}
+
+		respBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Printf("[WARNING] Failed getting form body: %s. Resp: %d. Body err: %s", err, res.StatusCode, bodyErr)
+			return forms, err
+		}
+
+		wrapped := FormSearchWrapper{}
+		err = json.Unmarshal(respBody, &wrapped)
+		if err != nil {
+			return forms, err
+		}
+
+		forms = []FormStructure{}
+		for _, hit := range wrapped.Hits.Hits {
+			forms = append(forms, hit.Source)
+		}
+	} else {
+		q := datastore.NewQuery(nameKey).Limit(100)
+
+		_, err := project.Dbclient.GetAll(ctx, q, &forms)
+		if err != nil && len(files) == 0 {
+			if strings.Contains(fmt.Sprintf("%s", err), "ResourceExhausted") {
+				q = q.Limit(50)
+				_, err := project.Dbclient.GetAll(ctx, q, &forms)
+				if err != nil && len(forms) == 0 {
+					return []FormStructure{}, err
+				}
+			} else if strings.Contains(fmt.Sprintf("%s", err), "cannot load field") {
+				log.Printf("[INFO] Failed loading SOME files - skipping: %s", err)
+			} else {
+				return []FormStructure{}, err
+			}
+		}
+	}
+
+	return forms, nil
 }
