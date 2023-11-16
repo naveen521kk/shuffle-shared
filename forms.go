@@ -111,13 +111,13 @@ func HandleGetForm(resp http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	_, err := HandleApiAuthentication(resp, request)
-	if err != nil {
-		log.Printf("[AUDIT] INITIAL Api authentication failed in form creation: %s", err)
-		resp.WriteHeader(401)
-		resp.Write([]byte(`{"success": false}`))
-		return
-	}
+	// _, err := HandleApiAuthentication(resp, request)
+	// if err != nil {
+	// 	log.Printf("[AUDIT] INITIAL Api authentication failed in form get: %s", err)
+	// 	resp.WriteHeader(401)
+	// 	resp.Write([]byte(`{"success": false}`))
+	// 	return
+	// }
 
 	var formId string
 	location := strings.Split(request.URL.String(), "/")
@@ -135,16 +135,18 @@ func HandleGetForm(resp http.ResponseWriter, request *http.Request) {
 	log.Printf("[DEBUG] Form ID: %s", formId)
 
 	if len(formId) != 36 {
-		resp.WriteHeader(401)
+		resp.WriteHeader(400)
 		resp.Write([]byte(`{"success": false, "message": "ID not valid"}`))
 		return
 	}
 
 	ctx := GetContext(request)
 	form, err := GetForm(ctx, formId)
+	// print form
+	log.Printf("[DEBUG] Form: %s", form)
 	if err != nil {
 		log.Printf("[ERROR] Failed getting form: %s", err)
-		resp.WriteHeader(401)
+		resp.WriteHeader(400)
 		resp.Write([]byte(`{"success": false, "reason": "Failed to get form"}`))
 		return
 	}
@@ -152,7 +154,7 @@ func HandleGetForm(resp http.ResponseWriter, request *http.Request) {
 	formJson, err := json.Marshal(form)
 	if err != nil {
 		log.Printf("[ERROR] Failed marshaling form: %s", err)
-		resp.WriteHeader(401)
+		resp.WriteHeader(400)
 		resp.Write([]byte(`{"success": false, "reason": "Failed to marshal form"}`))
 		return
 	}
