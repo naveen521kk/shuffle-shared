@@ -7025,7 +7025,7 @@ func GetAllFiles(ctx context.Context, orgId, namespace string) ([]File, error) {
 			return files, err
 		}
 
-		wrapped := FileSearchWrapper{} 
+		wrapped := FileSearchWrapper{}
 		err = json.Unmarshal(respBody, &wrapped)
 		if err != nil {
 			return files, err
@@ -10162,7 +10162,7 @@ func GetForms(ctx context.Context) ([]FormStructure, error) {
 
 		respBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			log.Printf("[WARNING] Failed getting form body: %s. Resp: %d. Body err: %s", err, res.StatusCode, bodyErr)
+			log.Printf("[WARNING] Failed getting form body: %s. Resp: %d. Body err: %s", err, res.StatusCode, "")
 			return forms, err
 		}
 
@@ -10180,7 +10180,7 @@ func GetForms(ctx context.Context) ([]FormStructure, error) {
 		q := datastore.NewQuery(nameKey).Limit(100)
 
 		_, err := project.Dbclient.GetAll(ctx, q, &forms)
-		if err != nil && len(files) == 0 {
+		if err != nil && len(forms) == 0 {
 			if strings.Contains(fmt.Sprintf("%s", err), "ResourceExhausted") {
 				q = q.Limit(50)
 				_, err := project.Dbclient.GetAll(ctx, q, &forms)
