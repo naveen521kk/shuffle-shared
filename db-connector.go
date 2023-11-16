@@ -10046,27 +10046,12 @@ func GetForm(ctx context.Context, formId string) (*FormStructure, error) {
 	cacheKey := fmt.Sprintf("%s_%s", nameKey, formId)
 
 	form := &FormStructure{}
-	if project.CacheDb {
-		cache, err := GetCache(ctx, cacheKey)
-		if err == nil {
-			cacheData := []byte(cache.([]uint8))
-			//log.Printf("CACHEDATA: %s", cacheData)
-			err = json.Unmarshal(cacheData, &form)
-			if err == nil && len(form.Id) > 0 {
-				return form, nil
-			} else {
-				return form, errors.New(fmt.Sprintf("Bad cache for %s", formId))
-			}
-		} else {
-			//log.Printf("[DEBUG] Failed getting cache for hook: %s", err)
-		}
-	}
 
 	var err error
 	if project.DbType == "opensearch" {
 		res, err := project.Es.Get(strings.ToLower(GetESIndexPrefix(nameKey)), formId)
 		if err != nil {
-			log.Printf("[WARNING] Error in form get: %s", err)
+			log.Printf("[WARNING] Error in form get for %s: %s", cacheKey, err)
 			return &FormStructure{}, err
 		}
 
@@ -10081,7 +10066,7 @@ func GetForm(ctx context.Context, formId string) (*FormStructure, error) {
 		}
 
 		wrapped := FormStructureWrapper{}
-		err = json.Unmarshal(respBody, &form)
+		err = json.Unmarshal(respBody, &wrapped)
 		if err != nil {
 			log.Printf("[ERROR] Failed unmarshalling form body: %s", err)
 			return &FormStructure{}, err
@@ -10093,19 +10078,6 @@ func GetForm(ctx context.Context, formId string) (*FormStructure, error) {
 		if err := project.Dbclient.Get(ctx, key, &form); err != nil {
 			log.Printf("[ERROR] Failed getting form body: %s", err)
 			return &FormStructure{}, err
-		}
-	}
-
-	if project.CacheDb {
-		hookData, err := json.Marshal(form)
-		if err != nil {
-			log.Printf("[WARNING] Failed marshalling in getform: %s", err)
-			return form, err
-		}
-
-		err = SetCache(ctx, cacheKey, hookData, 30)
-		if err != nil {
-			log.Printf("[WARNING] Failed setting cache for getform '%s': %s", cacheKey, err)
 		}
 	}
 
