@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	uuid "github.com/satori/go.uuid"
 )
@@ -54,6 +55,9 @@ func HandleCreateForms(resp http.ResponseWriter, request *http.Request) {
 	if len(curform.Name) < 1 {
 		curform.Name = "Untitled form"
 	}
+
+	// set updated at
+	curform.UpdatedAt = time.Now().Unix()
 
 	ctx := GetContext(request)
 
@@ -163,4 +167,99 @@ func HandleGetForm(resp http.ResponseWriter, request *http.Request) {
 	resp.Write([]byte(formJson))
 	return
 	// resp.Write([]byte(fmt.Sprintf(`{"success": true, "form": %s}`, formJson)))
+}
+
+func HandleGetFormResponses(resp http.ResponseWriter, request *http.Request) {
+	cors := HandleCors(resp, request)
+	if cors {
+		return
+	}
+
+	_, err := HandleApiAuthentication(resp, request)
+	if err != nil {
+		log.Printf("[AUDIT] INITIAL Api authentication failed in form creation: %s", err)
+		resp.WriteHeader(401)
+		resp.Write([]byte(`{"success": false}`))
+		return
+	}
+
+	var formId string
+	location := strings.Split(request.URL.String(), "/")
+	if location[1] == "api" {
+		if len(location) <= 4 {
+			log.Printf("[INFO] Path too short: %d", len(location))
+			resp.WriteHeader(401)
+			resp.Write([]byte(`{"success": false}`))
+			return
+		}
+
+		formId = location[4]
+	}
+
+	log.Printf("[DEBUG] Form ID reponses: %s", formId)
+
+	ctx := GetContext(request)
+
+	formsResponses, err := GetFormResponses(ctx, formId)
+	if err != nil {
+		log.Printf("[ERROR] Failed getting forms: %s", err)
+		resp.WriteHeader(401)
+		resp.Write([]byte(`{"success": false, "reason": "Failed to get forms"}`))
+		return
+	}
+
+	formResponsesJson, err := json.Marshal(formsResponses)
+	if err != nil {
+		log.Printf("[ERROR] Failed marshaling forms reponses: %s", err)
+		resp.WriteHeader(401)
+		resp.Write([]byte(`{"success": false, "reason": "Failed to marshal forms"}`))
+		return
+	}
+
+	resp.WriteHeader(200)
+	resp.Write([]byte(fmt.Sprintf(`{"success": true, "form_responses": %s}`, formResponsesJson)))
+}
+
+// delete form
+func HandleDeleteForm(resp http.ResponseWriter, request *http.Request) {
+	cors := HandleCors(resp, request)
+	if cors {
+		return
+	}
+
+	_, err := HandleApiAuthentication(resp, request)
+	if err != nil {
+		log.Printf("[AUDIT] INITIAL Api authentication failed in form delete: %s", err)
+		resp.WriteHeader(401)
+		resp.Write([]byte(`{"success": false}`))
+		return
+	}
+
+	var formId string
+	location := strings.Split(request.URL.String(), "/")
+	if location[1] == "api" {
+		if len(location) <= 4 {
+			log.Printf("[INFO] Path too short: %d", len(location))
+			resp.WriteHeader(401)
+			resp.Write([]byte(`{"success": false}`))
+			return
+		}
+
+		formId = location[4]
+	}
+
+	log.Printf("[DEBUG] Form ID delete: %s", formId)
+
+	ctx := GetContext(request)
+
+	err = DeleteForm(ctx, formId)
+	if err != nil {
+		log.Printf("[ERROR] Failed deleting form: %s", err)
+		resp.WriteHeader(401)
+		resp.Write([]byte(`{"success": false, "reason": "Failed to delete form"}`))
+		return
+	}
+
+	resp.WriteHeader(200)
+	resp.Write([]byte(`{"success": true}`))
 }

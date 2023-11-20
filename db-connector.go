@@ -10197,3 +10197,265 @@ func GetForms(ctx context.Context) ([]FormStructure, error) {
 
 	return forms, nil
 }
+
+func SetFormResponse(ctx context.Context, formResponse FormResponse) error {
+	nameKey := "form_response"
+
+	// New struct, to not add body, author etc
+	data, err := json.Marshal(formResponse)
+	if err != nil {
+		log.Printf("[WARNING] Failed marshalling in set form response: %s", err)
+		return nil
+	}
+
+	submissionId := uuid.NewV4().String()
+
+	if project.DbType == "opensearch" {
+		err := indexEs(ctx, nameKey, submissionId, data)
+		if err != nil {
+			return err
+		}
+	} else {
+		key := datastore.NameKey(nameKey, submissionId, nil)
+		if _, err := project.Dbclient.Put(ctx, key, &formResponse); err != nil {
+			log.Printf("[ERROR] Failed saving form reponse with ID %s: %s", submissionId, err)
+			return err
+		}
+	}
+
+	if project.CacheDb {
+
+		cacheKey := fmt.Sprintf("%s_%s", nameKey, submissionId)
+		err = SetCache(ctx, cacheKey, data, 30)
+		if err != nil {
+			log.Printf("[WARNING] Failed setting cache for form key '%s': %s", cacheKey, err)
+		}
+	}
+
+	return nil
+}
+
+func GetAllFormResponses(ctx context.Context) ([]FormResponse, error) {
+	nameKey := "form_response"
+
+	responses := []FormResponse{}
+
+	if project.DbType == "opensearch" {
+		var buf bytes.Buffer
+
+		query := map[string]interface{}{
+			"from": 0,
+			"size": 1000,
+			"query": map[string]interface{}{
+				"match_all": map[string]interface{}{},
+			},
+		}
+
+		if err := json.NewEncoder(&buf).Encode(query); err != nil {
+			log.Printf("[WARNING] Error encoding find user query: %s", err)
+			return responses, nil
+		}
+
+		// Get it from opensearch (may be prone to more issues at scale (thousands/second) due to no transactional locking)
+		res, err := project.Es.Search(
+			project.Es.Search.WithContext(ctx),
+			project.Es.Search.WithIndex(strings.ToLower(GetESIndexPrefix(nameKey))),
+			project.Es.Search.WithBody(&buf),
+			project.Es.Search.WithTrackTotalHits(true),
+		)
+		if err != nil {
+			log.Printf("[WARNING] Error in form get: %s", err)
+			return responses, err
+		}
+
+		defer res.Body.Close()
+		if res.StatusCode == 404 {
+			return responses, nil
+		}
+
+		if res.IsError() {
+			var e map[string]interface{}
+			if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
+				log.Printf("[WARNING] Error parsing the response body: %s", err)
+				return responses, err
+			} else {
+				// Print the response status and error information.
+				log.Printf("[%s] %s: %s",
+					res.Status(),
+					e["error"].(map[string]interface{})["type"],
+					e["error"].(map[string]interface{})["reason"],
+				)
+			}
+		}
+
+		if res.StatusCode != 200 && res.StatusCode != 201 {
+			return responses, errors.New(fmt.Sprintf("Bad statuscode: %d", res.StatusCode))
+		}
+
+		respBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Printf("[WARNING] Failed getting form body: %s. Resp: %d. Body err: %s", err, res.StatusCode, "")
+			return responses, err
+		}
+
+		wrapped := FormResponseSearchWrapper{}
+		err = json.Unmarshal(respBody, &wrapped)
+		if err != nil {
+			return responses, err
+		}
+
+		responses = []FormResponse{}
+		for _, hit := range wrapped.Hits.Hits {
+			responses = append(responses, hit.Source)
+		}
+	} else {
+		q := datastore.NewQuery(nameKey).Limit(100)
+
+		_, err := project.Dbclient.GetAll(ctx, q, &responses)
+		if err != nil && len(responses) == 0 {
+			if strings.Contains(fmt.Sprintf("%s", err), "ResourceExhausted") {
+				q = q.Limit(50)
+				_, err := project.Dbclient.GetAll(ctx, q, &responses)
+				if err != nil && len(responses) == 0 {
+					return []FormResponse{}, err
+				}
+			} else if strings.Contains(fmt.Sprintf("%s", err), "cannot load field") {
+				log.Printf("[INFO] Failed loading SOME files - skipping: %s", err)
+			} else {
+				return []FormResponse{}, err
+			}
+		}
+	}
+
+	return responses, nil
+}
+
+func GetFormResponses(ctx context.Context, formId string) ([]FormResponse, error) {
+	nameKey := "form_response"
+
+	responses := []FormResponse{}
+
+	if project.DbType == "opensearch" {
+		var buf bytes.Buffer
+
+		query := map[string]interface{}{
+			"from": 0,
+			"size": 1000,
+			"query": map[string]interface{}{
+				"bool": map[string]interface{}{
+					"must": []map[string]interface{}{
+						{
+							"match": map[string]interface{}{
+								"form_id": formId,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		if err := json.NewEncoder(&buf).Encode(query); err != nil {
+			log.Printf("[WARNING] Error encoding find user query: %s", err)
+			return responses, nil
+		}
+
+		// Get it from opensearch (may be prone to more issues at scale (thousands/second) due to no transactional locking)
+		res, err := project.Es.Search(
+			project.Es.Search.WithContext(ctx),
+			project.Es.Search.WithIndex(strings.ToLower(GetESIndexPrefix(nameKey))),
+			project.Es.Search.WithBody(&buf),
+			project.Es.Search.WithTrackTotalHits(true),
+		)
+		if err != nil {
+			log.Printf("[WARNING] Error in form get: %s", err)
+			return responses, err
+		}
+
+		defer res.Body.Close()
+		if res.StatusCode == 404 {
+			return responses, nil
+		}
+
+		if res.IsError() {
+			var e map[string]interface{}
+			if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
+				log.Printf("[WARNING] Error parsing the response body: %s", err)
+				return responses, err
+			} else {
+				// Print the response status and error information.
+				log.Printf("[%s] %s: %s",
+					res.Status(),
+					e["error"].(map[string]interface{})["type"],
+					e["error"].(map[string]interface{})["reason"],
+				)
+			}
+		}
+
+		if res.StatusCode != 200 && res.StatusCode != 201 {
+			return responses, errors.New(fmt.Sprintf("Bad statuscode: %d", res.StatusCode))
+		}
+
+		respBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Printf("[WARNING] Failed getting form body: %s. Resp: %d. Body err: %s", err, res.StatusCode, "")
+			return responses, err
+		}
+
+		wrapped := FormResponseSearchWrapper{}
+		err = json.Unmarshal(respBody, &wrapped)
+		if err != nil {
+			return responses, err
+		}
+
+		responses = []FormResponse{}
+		for _, hit := range wrapped.Hits.Hits {
+			responses = append(responses, hit.Source)
+		}
+	} else {
+		q := datastore.NewQuery(nameKey).Filter("form_id =", formId).Limit(100)
+
+		_, err := project.Dbclient.GetAll(ctx, q, &responses)
+		if err != nil && len(responses) == 0 {
+			if strings.Contains(fmt.Sprintf("%s", err), "ResourceExhausted") {
+				q = q.Limit(50)
+				_, err := project.Dbclient.GetAll(ctx, q, &responses)
+				if err != nil && len(responses) == 0 {
+					return []FormResponse{}, err
+				}
+			} else if strings.Contains(fmt.Sprintf("%s", err), "cannot load field") {
+				log.Printf("[INFO] Failed loading SOME files - skipping: %s", err)
+			} else {
+				return []FormResponse{}, err
+			}
+		}
+	}
+
+	return responses, nil
+}
+
+func DeleteForm(ctx context.Context, formId string) error {
+	nameKey := "form"
+
+	if project.DbType == "opensearch" {
+		err := DeleteKey(ctx, nameKey, formId)
+		if err != nil {
+			return err
+		}
+	} else {
+		key := datastore.NameKey(nameKey, formId, nil)
+		if err := project.Dbclient.Delete(ctx, key); err != nil {
+			log.Printf("[ERROR] Failed deleting form with ID %s: %s", formId, err)
+			return err
+		}
+	}
+
+	if project.CacheDb {
+		cacheKey := fmt.Sprintf("%s_%s", nameKey, formId)
+		err := DeleteCache(ctx, cacheKey)
+		if err != nil {
+			log.Printf("[WARNING] Failed deleting cache for form key '%s': %s", cacheKey, err)
+		}
+	}
+
+	return nil
+}

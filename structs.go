@@ -3571,6 +3571,8 @@ type FormStructure struct {
 	Id           string `json:"id"`
 	FormDataItem string `json:"form_data"`
 	WebhookId    string `json:"webhook_id"`
+	WorkflowId   string `json:"workflow_id"`
+	UpdatedAt    int64  `json:"updated_at"`
 }
 
 type FormStructureWrapper struct {
@@ -3607,4 +3609,52 @@ type FormSearchWrapper struct {
 			Source FormStructure    `json:"_source"`
 		} `json:"hits"`
 	} `json:"hits"`
+}
+
+type FormResponse struct {
+	FormId string `json:"form_id"`
+	FormData string `json:"form_data"`
+	SubmittedAt int64 `json:"submitted_at"`
+	ExecutionId string `json:"execution_id"`
+}
+
+type FormResponseWrapper struct {
+	Index       string `json:"_index"`
+	Type        string `json:"_type"`
+	ID          string `json:"_id"`
+	Version     int    `json:"_version"`
+	SeqNo       int    `json:"_seq_no"`
+	PrimaryTerm int    `json:"_primary_term"`
+	Found       bool   `json:"found"`
+	Source      FormResponse   `json:"_source"`
+}
+
+type FormResponseSearchWrapper struct {
+	Took     int  `json:"took"`
+	TimedOut bool `json:"timed_out"`
+	Shards   struct {
+		Total      int `json:"total"`
+		Successful int `json:"successful"`
+		Skipped    int `json:"skipped"`
+		Failed     int `json:"failed"`
+	} `json:"_shards"`
+	Hits struct {
+		Total struct {
+			Value    int    `json:"value"`
+			Relation string `json:"relation"`
+		} `json:"total"`
+		MaxScore float64 `json:"max_score"`
+		Hits     []struct {
+			Index  string  `json:"_index"`
+			Type   string  `json:"_type"`
+			ID     string  `json:"_id"`
+			Score  float64 `json:"_score"`
+			Source FormResponse    `json:"_source"`
+		} `json:"hits"`
+	} `json:"hits"`
+}
+
+type WebhookExecutionResponse struct {
+	Success bool `json:"success"`
+	ExecutionId string `json:"execution_id"`
 }
